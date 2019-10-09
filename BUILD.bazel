@@ -120,7 +120,7 @@ container_push(
     format = "Docker",
     image = ":bazel-remote-image",
     registry = "index.docker.io",
-    repository = "buchgr/bazel-remote-cache",
+    repository = "gjasny/bazel-remote-cache",
     tag = "latest",
     visibility = ["//visibility:public"],
 )

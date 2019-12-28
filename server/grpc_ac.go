@@ -51,7 +51,7 @@ func (s *grpcServer) GetActionResult(ctx context.Context,
 	}
 
 	if result == nil {
-		s.accessLogger.Printf("%s %s NOT FOUND", errorPrefix, req.ActionDigest.Hash)
+		s.accessLogger.Printf("%s [%s] %s NOT FOUND", errorPrefix, req.GetInstanceName(), req.ActionDigest.Hash)
 		return nil, status.Error(codes.NotFound,
 			fmt.Sprintf("%s not found in AC", req.ActionDigest.Hash))
 	}

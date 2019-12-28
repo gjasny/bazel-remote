@@ -170,17 +170,17 @@ func expectContentEquals(rdr io.ReadCloser, sizeBytes int64, expectedContent []b
 	return nil
 }
 
-func putGetCompare(kind cache.EntryKind, instanceName string, hash string, content string, testCache cache.Cache) error {
-	return putGetCompareBytes(kind, instanceName, hash, []byte(content), testCache)
+func putGetCompare(kind cache.EntryKind, hash string, content string, testCache cache.Cache) error {
+	return putGetCompareBytes(kind, hash, []byte(content), testCache)
 }
 
-func putGetCompareBytes(kind cache.EntryKind, instanceName string, hash string, data []byte, testCache cache.Cache) error {
-	err := putBytes(kind, instanceName, hash, data, testCache)
+func putGetCompareBytes(kind cache.EntryKind, hash string, data []byte, testCache cache.Cache) error {
+	err := putBytes(kind, NO_INSTANCE_NAME, hash, data, testCache)
 	if err != nil {
 		return err
 	}
 
-	return getCompareBytes(kind, instanceName, hash, data, testCache)
+	return getCompareBytes(kind, NO_INSTANCE_NAME, hash, data, testCache)
 }
 
 func put(kind cache.EntryKind, instanceName string, hash string, content string, testCache cache.Cache) error {
@@ -218,29 +218,29 @@ func TestOverwrite(t *testing.T) {
 	testCache := New(cacheDir, 10)
 
 	var err error
-	err = putGetCompare(cache.CAS, NO_INSTANCE_NAME, hashStr("hello"), "hello", testCache)
+	err = putGetCompare(cache.CAS, hashStr("hello"), "hello", testCache)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = putGetCompare(cache.CAS, NO_INSTANCE_NAME, hashStr("hello"), "hello", testCache)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = putGetCompare(cache.AC, NO_INSTANCE_NAME, hashStr("world"), "world1", testCache)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = putGetCompare(cache.AC, NO_INSTANCE_NAME, hashStr("world"), "world2", testCache)
+	err = putGetCompare(cache.CAS, hashStr("hello"), "hello", testCache)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = putGetCompare(cache.RAW, NO_INSTANCE_NAME, hashStr("world"), "world3", testCache)
+	err = putGetCompare(cache.AC, hashStr("world"), "world1", testCache)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = putGetCompare(cache.RAW, NO_INSTANCE_NAME, hashStr("world"), "world4", testCache)
+	err = putGetCompare(cache.AC, hashStr("world"), "world2", testCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = putGetCompare(cache.RAW, hashStr("world"), "world3", testCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = putGetCompare(cache.RAW, hashStr("world"), "world4", testCache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -478,17 +478,17 @@ func TestDistinctKeyspaces(t *testing.T) {
 
 	var err error
 
-	err = putGetCompareBytes(cache.CAS, NO_INSTANCE_NAME, casHash, blob, testCache)
+	err = putGetCompareBytes(cache.CAS, casHash, blob, testCache)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = putGetCompareBytes(cache.AC, NO_INSTANCE_NAME, casHash, blob, testCache)
+	err = putGetCompareBytes(cache.AC, casHash, blob, testCache)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = putGetCompareBytes(cache.RAW, NO_INSTANCE_NAME, casHash, blob, testCache)
+	err = putGetCompareBytes(cache.RAW, casHash, blob, testCache)
 	if err != nil {
 		t.Fatal(err)
 	}

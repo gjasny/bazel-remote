@@ -18,7 +18,7 @@ import (
 	testutils "github.com/buchgr/bazel-remote/utils"
 )
 
-const NO_PROJECT = ""
+const noInstanceName = ""
 
 func TestProxyReadWorks(t *testing.T) {
 	// Test that reading a blob from a proxy works and also populates the local
@@ -43,11 +43,11 @@ func TestProxyReadWorks(t *testing.T) {
 
 	hashBytes := sha256.Sum256(expectedData)
 	hash := hex.EncodeToString(hashBytes[:])
-	if diskCache.Contains(cache.CAS, NO_PROJECT, hash) {
+	if diskCache.Contains(cache.CAS, noInstanceName, hash) {
 		t.Fatalf("Expected the local cache to be empty")
 	}
 
-	readBytes, actualSizeBytes, err := proxy.Get(cache.CAS, NO_PROJECT, hash)
+	readBytes, actualSizeBytes, err := proxy.Get(cache.CAS, noInstanceName, hash)
 	if err != nil {
 		t.Fatalf("Failed to get the blob via the http proxy: '%v'", err)
 	}
@@ -66,7 +66,7 @@ func TestProxyReadWorks(t *testing.T) {
 			len(expectedData))
 	}
 
-	if !diskCache.Contains(cache.CAS, NO_PROJECT, hash) {
+	if !diskCache.Contains(cache.CAS, noInstanceName, hash) {
 		t.Fatalf("Expected the blob to be cached locally.")
 	}
 }
@@ -108,16 +108,16 @@ func TestProxyWriteWorks(t *testing.T) {
 	proxy := New(baseURL, diskCache, &http.Client{}, testutils.NewSilentLogger(),
 		testutils.NewSilentLogger())
 
-	if diskCache.Contains(cache.CAS, NO_PROJECT, hash) {
+	if diskCache.Contains(cache.CAS, noInstanceName, hash) {
 		t.Fatalf("Expected the local cache to be empty")
 	}
 
-	err = proxy.Put(cache.CAS, NO_PROJECT, hash, int64(len(data)), bytes.NewReader(data))
+	err = proxy.Put(cache.CAS, noInstanceName, hash, int64(len(data)), bytes.NewReader(data))
 	if err != nil {
 		t.Errorf("Failed to write to the proxy: '%v'", err)
 	}
 
-	if !diskCache.Contains(cache.CAS, NO_PROJECT, hash) {
+	if !diskCache.Contains(cache.CAS, noInstanceName, hash) {
 		t.Fatalf("Expected the local cache to contain '%s'", hash)
 	}
 }
@@ -146,7 +146,7 @@ func TestProxyReadErrorsArePropagated(t *testing.T) {
 	proxy := New(baseURL, diskCache, &http.Client{}, testutils.NewSilentLogger(),
 		testutils.NewSilentLogger())
 
-	_, _, err = proxy.Get(cache.CAS, NO_PROJECT, hash)
+	_, _, err = proxy.Get(cache.CAS, noInstanceName, hash)
 	if cerr, ok := err.(*cache.Error); ok {
 		if cerr.Code != http.StatusForbidden {
 			t.Errorf("Expected error code '%d' but got '%d'", http.StatusForbidden, cerr.Code)
@@ -185,12 +185,12 @@ func TestProxyWriteErrorsAreNotPropagated(t *testing.T) {
 	proxy := New(baseURL, diskCache, &http.Client{}, testutils.NewSilentLogger(),
 		testutils.NewSilentLogger())
 
-	err = proxy.Put(cache.CAS, NO_PROJECT, hash, int64(len(data)), bytes.NewReader(data))
+	err = proxy.Put(cache.CAS, noInstanceName, hash, int64(len(data)), bytes.NewReader(data))
 	if err != nil {
 		t.Error("Expected the error on put to not be propagated")
 	}
 
-	if !diskCache.Contains(cache.CAS, NO_PROJECT, hash) {
+	if !diskCache.Contains(cache.CAS, noInstanceName, hash) {
 		t.Error("Expected the blob to be stored locally")
 	}
 }
@@ -221,12 +221,12 @@ func TestProxyLocalPutFailuresNotRelayed(t *testing.T) {
 	proxy := New(baseURL, diskCache, &http.Client{}, testutils.NewSilentLogger(),
 		testutils.NewSilentLogger())
 
-	err = proxy.Put(cache.AC, NO_PROJECT, hash, int64(len(data)+1), bytes.NewReader(data))
+	err = proxy.Put(cache.AC, noInstanceName, hash, int64(len(data)+1), bytes.NewReader(data))
 	if err == nil {
 		t.Error("Expected Put to error with size miss-match")
 	}
 
-	if diskCache.Contains(cache.AC, NO_PROJECT, hash) {
+	if diskCache.Contains(cache.AC, noInstanceName, hash) {
 		t.Error("Expected not to be stored locally")
 	}
 }

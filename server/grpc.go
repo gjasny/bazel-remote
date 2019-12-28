@@ -22,10 +22,6 @@ const (
 	hashKeyLength = 64
 )
 
-const (
-	noProjectName = ""
-)
-
 var (
 	// Cache keys must be lower case asciified SHA256 sums.
 	hashKeyRegex = regexp.MustCompile("^[a-f0-9]{64}$")

@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/buchgr/bazel-remote/utils"
+	testutils "github.com/buchgr/bazel-remote/utils"
 
 	"github.com/buchgr/bazel-remote/cache"
 )
@@ -57,6 +57,7 @@ func checkItems(cache *diskCache, expSize int64, expNum int) error {
 	return nil
 }
 
+const NO_PROJECT = ""
 const KEY = "a-key"
 const CONTENTS = "hello"
 const CONTENTS_HASH = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
@@ -72,7 +73,7 @@ func TestCacheBasics(t *testing.T) {
 	}
 
 	// Non-existing item
-	rdr, sizeBytes, err := testCache.Get(cache.CAS, CONTENTS_HASH)
+	rdr, sizeBytes, err := testCache.Get(cache.CAS, NO_PROJECT, CONTENTS_HASH)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +82,7 @@ func TestCacheBasics(t *testing.T) {
 	}
 
 	// Add an item
-	err = testCache.Put(cache.CAS, CONTENTS_HASH, int64(len(CONTENTS)), strings.NewReader(CONTENTS))
+	err = testCache.Put(cache.CAS, NO_PROJECT, CONTENTS_HASH, int64(len(CONTENTS)), strings.NewReader(CONTENTS))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +95,7 @@ func TestCacheBasics(t *testing.T) {
 	}
 
 	// Get the item back
-	rdr, sizeBytes, err = testCache.Get(cache.CAS, CONTENTS_HASH)
+	rdr, sizeBytes, err = testCache.Get(cache.CAS, NO_PROJECT, CONTENTS_HASH)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +127,7 @@ func TestCacheEviction(t *testing.T) {
 
 	for i, thisExp := range expectedSizesNumItems {
 		strReader := strings.NewReader(strings.Repeat("a", i))
-		err := testCache.Put(cache.AC, fmt.Sprintf("aa-%d", i), int64(i), strReader)
+		err := testCache.Put(cache.AC, NO_PROJECT, fmt.Sprintf("aa-%d", i), int64(i), strReader)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -143,7 +144,7 @@ func TestCachePutWrongSize(t *testing.T) {
 	defer os.RemoveAll(cacheDir)
 	testCache := New(cacheDir, 100)
 
-	err := testCache.Put(cache.AC, "aa-aa", int64(10), strings.NewReader("hello"))
+	err := testCache.Put(cache.AC, NO_PROJECT, "aa-aa", int64(10), strings.NewReader("hello"))
 	if err == nil {
 		t.Fatal("Expected error due to size being different")
 	}
@@ -169,20 +170,35 @@ func expectContentEquals(rdr io.ReadCloser, sizeBytes int64, expectedContent []b
 	return nil
 }
 
-func putGetCompare(kind cache.EntryKind, hash string, content string, testCache cache.Cache) error {
-	return putGetCompareBytes(kind, hash, []byte(content), testCache)
+func putGetCompare(kind cache.EntryKind, projectName string, hash string, content string, testCache cache.Cache) error {
+	return putGetCompareBytes(kind, projectName, hash, []byte(content), testCache)
 }
 
-func putGetCompareBytes(kind cache.EntryKind, hash string, data []byte, testCache cache.Cache) error {
-
-	r := bytes.NewReader(data)
-
-	err := testCache.Put(kind, hash, int64(len(data)), r)
+func putGetCompareBytes(kind cache.EntryKind, projectName string, hash string, data []byte, testCache cache.Cache) error {
+	err := putBytes(kind, projectName, hash, data, testCache)
 	if err != nil {
 		return err
 	}
 
-	rdr, sizeBytes, err := testCache.Get(kind, hash)
+	return getCompareBytes(kind, projectName, hash, data, testCache)
+}
+
+func put(kind cache.EntryKind, projectName string, hash string, content string, testCache cache.Cache) error {
+	return putBytes(kind, projectName, hash, []byte(content), testCache)
+}
+
+func putBytes(kind cache.EntryKind, projectName string, hash string, data []byte, testCache cache.Cache) error {
+	r := bytes.NewReader(data)
+
+	return testCache.Put(kind, projectName, hash, int64(len(data)), r)
+}
+
+func getCompare(kind cache.EntryKind, projectName string, hash string, content string, testCache cache.Cache) error {
+	return getCompareBytes(kind, projectName, hash, []byte(content), testCache)
+}
+
+func getCompareBytes(kind cache.EntryKind, projectName string, hash string, data []byte, testCache cache.Cache) error {
+	rdr, sizeBytes, err := testCache.Get(kind, projectName, hash)
 	if err != nil {
 		return err
 	}
@@ -202,29 +218,81 @@ func TestOverwrite(t *testing.T) {
 	testCache := New(cacheDir, 10)
 
 	var err error
-	err = putGetCompare(cache.CAS, hashStr("hello"), "hello", testCache)
+	err = putGetCompare(cache.CAS, NO_PROJECT, hashStr("hello"), "hello", testCache)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = putGetCompare(cache.CAS, hashStr("hello"), "hello", testCache)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = putGetCompare(cache.AC, hashStr("world"), "world1", testCache)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = putGetCompare(cache.AC, hashStr("world"), "world2", testCache)
+	err = putGetCompare(cache.CAS, NO_PROJECT, hashStr("hello"), "hello", testCache)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = putGetCompare(cache.RAW, hashStr("world"), "world3", testCache)
+	err = putGetCompare(cache.AC, NO_PROJECT, hashStr("world"), "world1", testCache)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = putGetCompare(cache.RAW, hashStr("world"), "world4", testCache)
+	err = putGetCompare(cache.AC, NO_PROJECT, hashStr("world"), "world2", testCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = putGetCompare(cache.RAW, NO_PROJECT, hashStr("world"), "world3", testCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = putGetCompare(cache.RAW, NO_PROJECT, hashStr("world"), "world4", testCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRespectProjectName(t *testing.T) {
+	cacheDir := tempDir(t)
+	defer os.RemoveAll(cacheDir)
+	testCache := New(cacheDir, 30)
+
+	hash := hashStr("just some common hash")
+
+	var err error
+	err = put(cache.AC, NO_PROJECT, hash, "content", testCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = put(cache.AC, "a", hash, "contentA", testCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = put(cache.AC, "b", hash, "contentB", testCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// expect different content for different project names
+
+	err = getCompare(cache.AC, NO_PROJECT, hash, "content", testCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = getCompare(cache.AC, "a", hash, "contentA", testCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = getCompare(cache.AC, "b", hash, "contentB", testCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	anotherTestCache := New(cacheDir, 30)
+
+	err = getCompare(cache.AC, NO_PROJECT, hash, "content", anotherTestCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = getCompare(cache.AC, "a", hash, "contentA", anotherTestCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = getCompare(cache.AC, "b", hash, "contentB", anotherTestCache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +332,7 @@ func TestCacheExistingFiles(t *testing.T) {
 	}
 
 	// Adding a new file should evict items[0] (the oldest)
-	err = testCache.Put(cache.CAS, CONTENTS_HASH, int64(len(CONTENTS)), strings.NewReader(CONTENTS))
+	err = testCache.Put(cache.CAS, NO_PROJECT, CONTENTS_HASH, int64(len(CONTENTS)), strings.NewReader(CONTENTS))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +341,7 @@ func TestCacheExistingFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	found := testCache.Contains(cache.CAS, "f53b46209596d170f7659a414c9ff9f6b545cf77ffd6e1cbe9bcc57e1afacfbd")
+	found := testCache.Contains(cache.CAS, NO_PROJECT, "f53b46209596d170f7659a414c9ff9f6b545cf77ffd6e1cbe9bcc57e1afacfbd")
 	if found {
 		t.Fatalf("%s should have been evicted", items[0])
 	}
@@ -288,7 +356,7 @@ func TestCacheBlobTooLarge(t *testing.T) {
 
 	for k := range []cache.EntryKind{cache.AC, cache.RAW} {
 		kind := cache.EntryKind(k)
-		err := testCache.Put(kind, hashStr("foo"), 10000, strings.NewReader(CONTENTS))
+		err := testCache.Put(kind, NO_PROJECT, hashStr("foo"), 10000, strings.NewReader(CONTENTS))
 		if err == nil {
 			t.Fatal("Expected an error")
 		}
@@ -309,14 +377,14 @@ func TestCacheCorruptedCASBlob(t *testing.T) {
 	defer os.RemoveAll(cacheDir)
 	testCache := New(cacheDir, 1000)
 
-	err := testCache.Put(cache.CAS, hashStr("foo"), int64(len(CONTENTS)),
+	err := testCache.Put(cache.CAS, NO_PROJECT, hashStr("foo"), int64(len(CONTENTS)),
 		strings.NewReader(CONTENTS))
 	if err == nil {
 		t.Fatal("expected hash mismatch error")
 	}
 
 	// We expect the upload to succeed without validation:
-	err = testCache.Put(cache.RAW, hashStr("foo"), int64(len(CONTENTS)),
+	err = testCache.Put(cache.RAW, NO_PROJECT, hashStr("foo"), int64(len(CONTENTS)),
 		strings.NewReader(CONTENTS))
 	if err != nil {
 		t.Fatal(err)
@@ -344,13 +412,13 @@ func TestMigrateFromOldDirectoryStructure(t *testing.T) {
 	if numItems != 3 {
 		t.Fatalf("Expected test cache size 3 but was %d", numItems)
 	}
-	if !testCache.Contains(cache.AC, acHash) {
+	if !testCache.Contains(cache.AC, NO_PROJECT, acHash) {
 		t.Fatalf("Expected cache to contain AC entry '%s'", acHash)
 	}
-	if !testCache.Contains(cache.CAS, casHash1) {
+	if !testCache.Contains(cache.CAS, NO_PROJECT, casHash1) {
 		t.Fatalf("Expected cache to contain CAS entry '%s'", casHash1)
 	}
-	if !testCache.Contains(cache.CAS, casHash2) {
+	if !testCache.Contains(cache.CAS, NO_PROJECT, casHash2) {
 		t.Fatalf("Expected cache to contain CAS entry '%s'", casHash2)
 	}
 }
@@ -363,15 +431,15 @@ func TestLoadExistingEntries(t *testing.T) {
 	numBlobs := int64(3)
 	blobSize := int64(1024)
 
-	acHash, err := testutils.CreateCacheFile(cacheDir+"/ac/", blobSize)
+	acHash, err := testutils.CreateCacheFile(cacheDir+"/ac/", NO_PROJECT, blobSize)
 	if err != nil {
 		t.Fatal(err)
 	}
-	casHash, err := testutils.CreateCacheFile(cacheDir+"/cas/", blobSize)
+	casHash, err := testutils.CreateCacheFile(cacheDir+"/cas/", NO_PROJECT, blobSize)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rawHash, err := testutils.CreateCacheFile(cacheDir+"/raw/", blobSize)
+	rawHash, err := testutils.CreateCacheFile(cacheDir+"/raw/", NO_PROJECT, blobSize)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -382,13 +450,13 @@ func TestLoadExistingEntries(t *testing.T) {
 		t.Fatalf("Expected test cache size %d but was %d",
 			numBlobs, numItems)
 	}
-	if !testCache.Contains(cache.AC, acHash) {
+	if !testCache.Contains(cache.AC, NO_PROJECT, acHash) {
 		t.Fatalf("Expected cache to contain AC entry '%s'", acHash)
 	}
-	if !testCache.Contains(cache.CAS, casHash) {
+	if !testCache.Contains(cache.CAS, NO_PROJECT, casHash) {
 		t.Fatalf("Expected cache to contain CAS entry '%s'", casHash)
 	}
-	if !testCache.Contains(cache.RAW, rawHash) {
+	if !testCache.Contains(cache.RAW, NO_PROJECT, rawHash) {
 		t.Fatalf("Expected cache to contain RAW entry '%s'", rawHash)
 	}
 }
@@ -410,17 +478,17 @@ func TestDistinctKeyspaces(t *testing.T) {
 
 	var err error
 
-	err = putGetCompareBytes(cache.CAS, casHash, blob, testCache)
+	err = putGetCompareBytes(cache.CAS, NO_PROJECT, casHash, blob, testCache)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = putGetCompareBytes(cache.AC, casHash, blob, testCache)
+	err = putGetCompareBytes(cache.AC, NO_PROJECT, casHash, blob, testCache)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = putGetCompareBytes(cache.RAW, casHash, blob, testCache)
+	err = putGetCompareBytes(cache.RAW, NO_PROJECT, casHash, blob, testCache)
 	if err != nil {
 		t.Fatal(err)
 	}

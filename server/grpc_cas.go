@@ -37,7 +37,7 @@ func (s *grpcServer) FindMissingBlobs(ctx context.Context,
 			return nil, err
 		}
 
-		if !s.cache.Contains(cache.CAS, hash) {
+		if !s.cache.Contains(cache.CAS, noProjectName, hash) {
 			s.accessLogger.Printf("GRPC CAS HEAD %s NOT FOUND", hash)
 			resp.MissingBlobDigests = append(resp.MissingBlobDigests, digest)
 		} else {
@@ -73,7 +73,7 @@ func (s *grpcServer) BatchUpdateBlobs(ctx context.Context,
 		}
 		resp.Responses = append(resp.Responses, &rr)
 
-		err = s.cache.Put(cache.CAS, req.Digest.Hash,
+		err = s.cache.Put(cache.CAS, noProjectName, req.Digest.Hash,
 			int64(len(req.Data)), bytes.NewReader(req.Data))
 		if err != nil {
 			s.errorLogger.Printf("%s %s %s", errorPrefix, req.Digest.Hash, err)
@@ -91,7 +91,7 @@ func (s *grpcServer) BatchUpdateBlobs(ctx context.Context,
 // found, the returned error is errBlobNotFound. Only use this
 // function when it's OK to buffer the entire blob in memory.
 func (s *grpcServer) getBlobData(hash string, size int64) ([]byte, error) {
-	rdr, sizeBytes, err := s.cache.Get(cache.CAS, hash)
+	rdr, sizeBytes, err := s.cache.Get(cache.CAS, noProjectName, hash)
 	if err != nil {
 		rdr.Close()
 		return []byte{}, err

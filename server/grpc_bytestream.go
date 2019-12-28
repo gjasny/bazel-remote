@@ -87,7 +87,7 @@ func (s *grpcServer) Read(req *bytestream.ReadRequest,
 		return status.Error(codes.OutOfRange, msg)
 	}
 
-	rdr, sizeBytes, err := s.cache.Get(cache.CAS, hash)
+	rdr, sizeBytes, err := s.cache.Get(cache.CAS, noProjectName, hash)
 	if err != nil {
 		msg := fmt.Sprintf("GRPC BYTESTREAM READ FAILED: %v", err)
 		s.accessLogger.Printf(msg)
@@ -276,7 +276,7 @@ func (s *grpcServer) Write(srv bytestream.ByteStream_WriteServer) error {
 				}
 
 				go func() {
-					putResult <- s.cache.Put(cache.CAS, hash, size, pr)
+					putResult <- s.cache.Put(cache.CAS, noProjectName, hash, size, pr)
 				}()
 
 				firstIteration = false

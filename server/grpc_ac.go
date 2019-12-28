@@ -43,7 +43,7 @@ func (s *grpcServer) GetActionResult(ctx context.Context,
 		return nil, err
 	}
 
-	result, _, err := cache.GetValidatedActionResult(s.cache,
+	result, _, err := cache.GetValidatedActionResult(s.cache, noProjectName,
 		req.ActionDigest.Hash)
 	if err != nil {
 		s.accessLogger.Printf("%s %s %s", errorPrefix, req.ActionDigest.Hash, err)
@@ -114,8 +114,8 @@ func (s *grpcServer) maybeInline(inline bool, slice *[]byte, digest **pb.Digest,
 			}
 		}
 
-		if !s.cache.Contains(cache.CAS, (*digest).Hash) {
-			err := s.cache.Put(cache.CAS, (*digest).Hash, (*digest).SizeBytes,
+		if !s.cache.Contains(cache.CAS, noProjectName, (*digest).Hash) {
+			err := s.cache.Put(cache.CAS, noProjectName, (*digest).Hash, (*digest).SizeBytes,
 				bytes.NewReader(*slice))
 			if err != nil {
 				return err
@@ -172,7 +172,7 @@ func (s *grpcServer) UpdateActionResult(ctx context.Context,
 		return nil, errEmptyActionResult
 	}
 
-	err = s.cache.Put(cache.AC, req.ActionDigest.Hash,
+	err = s.cache.Put(cache.AC, noProjectName, req.ActionDigest.Hash,
 		int64(len(data)), bytes.NewReader(data))
 	if err != nil {
 		s.accessLogger.Printf("%s %s %s", errorPrefix, req.ActionDigest.Hash, err)

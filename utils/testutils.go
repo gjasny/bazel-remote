@@ -26,11 +26,14 @@ func CreateRandomFile(dir string, size int64) (string, error) {
 	return hash, ioutil.WriteFile(filepath, data, os.ModePerm)
 }
 
-func CreateCacheFile(dir string, size int64) (string, error) {
+func CreateCacheFile(dir string, projectName string, size int64) (string, error) {
 	data, hash := RandomDataAndHash(size)
 	subdir := dir + "/" + hash[0:2]
 	os.MkdirAll(subdir, os.ModePerm)
 	filepath := subdir + "/" + hash
+	if projectName != "" {
+		filepath += "_" + projectName
+	}
 
 	return hash, ioutil.WriteFile(filepath, data, os.ModePerm)
 }

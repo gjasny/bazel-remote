@@ -76,7 +76,7 @@ func (s *grpcServer) BatchUpdateBlobs(ctx context.Context,
 		err = s.cache.Put(cache.CAS, in.GetInstanceName(), req.Digest.Hash,
 			int64(len(req.Data)), bytes.NewReader(req.Data))
 		if err != nil {
-			s.errorLogger.Printf("%s %s %s", errorPrefix, req.Digest.Hash, err)
+			s.errorLogger.Printf("%s [%s] %s %s", errorPrefix, in.GetInstanceName(), req.Digest.Hash, err)
 			rr.Status.Code = int32(code.Code_UNKNOWN)
 			continue
 		}
@@ -120,21 +120,21 @@ func (s *grpcServer) getBlobResponse(instanceName string, digest *pb.Digest) *pb
 
 	data, err := s.getBlobData(instanceName, digest.Hash, digest.SizeBytes)
 	if err == errBlobNotFound {
-		s.accessLogger.Printf("GRPC CAS GET %s NOT FOUND", digest.Hash)
+		s.accessLogger.Printf("GRPC CAS GET [%s] %s NOT FOUND", instanceName, digest.Hash)
 		r.Status = &status.Status{Code: int32(code.Code_NOT_FOUND)}
 		return &r
 	}
 
 	if err != nil {
-		s.errorLogger.Printf("GRPC CAS GET %s INTERNAL ERROR: %v",
-			digest.Hash, err)
+		s.errorLogger.Printf("GRPC CAS GET [%s] %s INTERNAL ERROR: %v",
+			instanceName, digest.Hash, err)
 		r.Status = &status.Status{Code: int32(code.Code_INTERNAL)}
 		return &r
 	}
 
 	r.Data = data
 
-	s.accessLogger.Printf("GRPC CAS GET %s OK", digest.Hash)
+	s.accessLogger.Printf("GRPC CAS GET [%s] %s OK", instanceName, digest.Hash)
 	return &r
 }
 
@@ -173,19 +173,19 @@ func (s *grpcServer) GetTree(in *pb.GetTreeRequest,
 
 	data, err := s.getBlobData(in.GetInstanceName(), in.RootDigest.Hash, in.RootDigest.SizeBytes)
 	if err == errBlobNotFound {
-		s.accessLogger.Printf("GRPC CAS GETTREEREQUEST %s NOT FOUND",
+		s.accessLogger.Printf("GRPC CAS GETTREEREQUEST [%s] %s NOT FOUND", in.GetInstanceName(),
 			in.RootDigest.Hash)
 		return grpc_status.Error(codes.NotFound, "Item not found")
 	}
 	if err != nil {
-		s.accessLogger.Printf("%s %s %s", errorPrefix, in.RootDigest.Hash, err)
+		s.accessLogger.Printf("%s [%s] %s %s", errorPrefix, in.GetInstanceName(), in.RootDigest.Hash, err)
 		return grpc_status.Error(codes.Unknown, err.Error())
 	}
 
 	dir := pb.Directory{}
 	err = proto.Unmarshal(data, &dir)
 	if err != nil {
-		s.errorLogger.Printf("%s %s %s", errorPrefix, in.RootDigest.Hash, err)
+		s.errorLogger.Printf("%s [%s] %s %s", errorPrefix, in.GetInstanceName(), in.RootDigest.Hash, err)
 		return grpc_status.Error(codes.DataLoss, err.Error())
 	}
 
@@ -198,7 +198,7 @@ func (s *grpcServer) GetTree(in *pb.GetTreeRequest,
 	// TODO: if resp is too large, split it up and call Send multiple times,
 	// with resp.NextPageToken set for all but the last Send call?
 
-	s.accessLogger.Printf("GRPC GETTREEREQUEST %s OK", in.RootDigest.Hash)
+	s.accessLogger.Printf("GRPC GETTREEREQUEST [%s] %s OK", in.GetInstanceName(), in.RootDigest.Hash)
 	return nil
 }
 
@@ -219,23 +219,23 @@ func (s *grpcServer) fillDirectories(instanceName string, resp *pb.GetTreeRespon
 
 		data, err := s.getBlobData(instanceName, dirNode.Digest.Hash, dirNode.Digest.SizeBytes)
 		if err == errBlobNotFound {
-			s.accessLogger.Printf("GRPC GETTREEREQUEST BLOB %s NOT FOUND",
+			s.accessLogger.Printf("GRPC GETTREEREQUEST [%s] BLOB %s NOT FOUND", instanceName,
 				dirNode.Digest.Hash)
 			continue
 		}
 		if err != nil {
-			s.accessLogger.Printf("GRPC GETTREEREQUEST BLOB %s ERR: %v", err)
+			s.accessLogger.Printf("GRPC GETTREEREQUEST [%s] BLOB %s ERR: %v", instanceName, err)
 			continue
 		}
 
 		dirMsg := pb.Directory{}
 		err = proto.Unmarshal(data, &dirMsg)
 		if err != nil {
-			s.accessLogger.Printf("GRPC GETTREEREQUEST BAD BLOB: %v", err)
+			s.accessLogger.Printf("GRPC GETTREEREQUEST [%s] BAD BLOB: %v", instanceName, err)
 			continue
 		}
 
-		s.accessLogger.Printf("GRPC GETTREEREQUEST BLOB %s ADDED OK",
+		s.accessLogger.Printf("GRPC GETTREEREQUEST [%s] BLOB %s ADDED OK", instanceName,
 			dirNode.Digest.Hash)
 
 		err = s.fillDirectories(instanceName, resp, &dirMsg, errorPrefix)

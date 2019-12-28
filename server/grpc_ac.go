@@ -46,7 +46,7 @@ func (s *grpcServer) GetActionResult(ctx context.Context,
 	result, _, err := cache.GetValidatedActionResult(s.cache, req.GetInstanceName(),
 		req.ActionDigest.Hash)
 	if err != nil {
-		s.accessLogger.Printf("%s %s %s", errorPrefix, req.ActionDigest.Hash, err)
+		s.accessLogger.Printf("%s [%s] %s %s", errorPrefix, req.GetInstanceName(), req.ActionDigest.Hash, err)
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
@@ -63,14 +63,14 @@ func (s *grpcServer) GetActionResult(ctx context.Context,
 	err = s.maybeInline(req.GetInstanceName(), req.InlineStdout,
 		&result.StdoutRaw, &result.StdoutDigest, &inlinedSoFar)
 	if err != nil {
-		s.accessLogger.Printf("%s %s %s", errorPrefix, req.ActionDigest.Hash, err)
+		s.accessLogger.Printf("%s [%s] %s %s", errorPrefix, req.GetInstanceName(), req.ActionDigest.Hash, err)
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
 	err = s.maybeInline(req.GetInstanceName(), req.InlineStderr,
 		&result.StderrRaw, &result.StderrDigest, &inlinedSoFar)
 	if err != nil {
-		s.accessLogger.Printf("%s %s %s", errorPrefix, req.ActionDigest.Hash, err)
+		s.accessLogger.Printf("%s [%s] %s %s", errorPrefix, req.GetInstanceName(), req.ActionDigest.Hash, err)
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
@@ -82,7 +82,7 @@ func (s *grpcServer) GetActionResult(ctx context.Context,
 		_, ok := inlinableFiles[of.Path]
 		err = s.maybeInline(req.GetInstanceName(), ok, &of.Contents, &of.Digest, &inlinedSoFar)
 		if err != nil {
-			s.accessLogger.Printf("%s %s %s", errorPrefix, req.ActionDigest.Hash, err)
+			s.accessLogger.Printf("%s [%s] %s %s", errorPrefix, req.GetInstanceName(), req.ActionDigest.Hash, err)
 			return nil, status.Error(codes.Unknown, err.Error())
 		}
 	}
@@ -162,12 +162,12 @@ func (s *grpcServer) UpdateActionResult(ctx context.Context,
 
 	data, err := proto.Marshal(req.ActionResult)
 	if err != nil {
-		s.accessLogger.Printf("%s %s %s", errorPrefix, req.ActionDigest.Hash, err)
+		s.accessLogger.Printf("%s [%s] %s %s", errorPrefix, req.GetInstanceName(), req.ActionDigest.Hash, err)
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
 	if len(data) == 0 {
-		s.accessLogger.Printf("%s %s %s", errorPrefix, req.ActionDigest.Hash,
+		s.accessLogger.Printf("%s [%s] %s %s", errorPrefix, req.GetInstanceName(), req.ActionDigest.Hash,
 			errEmptyActionResult.Error())
 		return nil, errEmptyActionResult
 	}
@@ -175,7 +175,7 @@ func (s *grpcServer) UpdateActionResult(ctx context.Context,
 	err = s.cache.Put(cache.AC, req.GetInstanceName(), req.ActionDigest.Hash,
 		int64(len(data)), bytes.NewReader(data))
 	if err != nil {
-		s.accessLogger.Printf("%s %s %s", errorPrefix, req.ActionDigest.Hash, err)
+		s.accessLogger.Printf("%s [%s] %s %s", errorPrefix, req.GetInstanceName(), req.ActionDigest.Hash, err)
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 

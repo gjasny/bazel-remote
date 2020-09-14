@@ -7,7 +7,5 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@master
-      - name: Install Bazel
-        run: .github/scripts/install-bazel
       - name: Build
         run: bazel build --host_force_python=PY2 -c opt //:bazel-remote-image

@@ -21,7 +21,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-var blobNameSHA256 = regexp.MustCompile("^/?(.*/)?(ac/|cas/)([a-f0-9]{64})$")
+var blobNameSHA256 = regexp.MustCompile("^/?(.*/)?(ac/|cas/|raw/)([a-f0-9]{64})$")
 
 // HTTPCache ...
 type HTTPCache interface {
@@ -96,7 +96,7 @@ func parseRequestURL(url string, validateAC bool) (kind cache.EntryKind, hash st
 		return cache.CAS, hash, instance, nil
 	}
 
-	if validateAC {
+	if parts[0] == "as/" && validateAC {
 		return cache.AC, hash, instance, nil
 	}
 
